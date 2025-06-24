@@ -170,7 +170,7 @@
     
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script>
-        const WINDY_API_KEY = '8blZNjPPwC439kOhN7jphWQURSzBCZUN';
+        const WINDY_API_KEY = '8blZNjPPwC439kOhN7jphWQURSzBCZUN'; // Substitua pela sua chave da API Windy se tiver uma.
 
         const itineraryData = [
             { id: 1, date: '25/07/2025', time: '05:30', type: 'Saída', location: 'Hotel Pullman Guarulhos Aeroporto', city: 'Guarulhos', country: 'Brasil', activity: 'Saída hotel', transport: 'Transfer', distance_km: 5.4, travel_time: '0h10m', notes: null, link: null, fileLink: null },
@@ -283,7 +283,6 @@
         function switchActiveFilter(newFilter) { document.querySelector('.filter-btn.active')?.classList.remove('active'); const newActiveButton = document.querySelector(`.filter-btn[data-filter="${newFilter}"]`); if(newActiveButton) { newActiveButton.classList.add('active'); newActiveButton.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }); } }
         function toggleEventCompletion(eventId) { const completedEvents = JSON.parse(localStorage.getItem('completedEvents')) || {}; const eventDetails = itineraryData.find(e => e.id == eventId); if (!eventDetails) return; const dayOfEvent = eventDetails.date; if (completedEvents[eventId]) { delete completedEvents[eventId]; } else { const now = new Date(); const completionTimestamp = now.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' às ' + now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); completedEvents[eventId] = completionTimestamp; } localStorage.setItem('completedEvents', JSON.stringify(completedEvents)); const currentFilter = document.querySelector('.filter-btn.active').dataset.filter; if (isDayCompleted(dayOfEvent) && currentFilter === dayOfEvent) { const nextDay = findNextIncompleteDay(dayOfEvent); switchActiveFilter(nextDay); } setupFilters(); renderItinerary(document.querySelector('.filter-btn.active').dataset.filter); updateTripProgress(); updateVisitedMarkers(); }
         
-        // ALTERADO: O event listener agora procura pelo '.panel-btn' e chama a nova função 'showStatusPanel'.
         function setupRoteiroEventListeners() {
             document.getElementById('itinerary-container').addEventListener('click', (e) => {
                 const panelBtn = e.target.closest('.panel-btn');
@@ -311,7 +310,6 @@
         function setupFilters() { const filtersContainer = document.getElementById('day-filters'); const currentActiveFilter = document.querySelector('.filter-btn.active')?.dataset.filter; orderedDays = [...new Set(itineraryData.map(item => item.date).filter(Boolean))]; const allDaysForFilters = ['all', ...orderedDays]; filtersContainer.innerHTML = allDaysForFilters.map((day, index) => { const isCompleted = day !== 'all' && isDayCompleted(day); const label = day === 'all' ? 'Todos' : `Dia ${index + 1} (${day.substring(0, 5)})`; return `<button class="filter-btn ${isCompleted ? 'completed' : ''}" data-filter="${day}">${label}</button>` }).join(''); const activeFilterToSet = currentActiveFilter || orderedDays.find(day => !isDayCompleted(day)) || 'all'; switchActiveFilter(activeFilterToSet); }
         function renderItinerary(filter = 'all') { const container = document.getElementById('itinerary-container'); container.innerHTML = ''; const completedEvents = JSON.parse(localStorage.getItem('completedEvents')) || {}; const filteredData = filter === 'all' ? itineraryData : itineraryData.filter(item => item.date === filter); const groupedByDate = filteredData.reduce((acc, item) => { if (!item.date) return acc; const eventDate = parseBrazilianDate(item.date, '00:00'); if (!eventDate) return acc; const dateKey = eventDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }); if (!acc[dateKey]) { acc[dateKey] = []; } acc[dateKey].push(item); return acc; }, {}); for (const date in groupedByDate) { const dayGroup = document.createElement('div'); dayGroup.className = 'day-group'; const dayHeader = document.createElement('h2'); dayHeader.className = 'day-header'; dayHeader.textContent = date; dayGroup.appendChild(dayHeader); groupedByDate[date].sort((a,b) => (a.time || "00:00").localeCompare(b.time || "00:00")); groupedByDate[date].forEach(item => { const isCompleted = !!completedEvents[item.id]; const completionTime = completedEvents[item.id]; dayGroup.appendChild(createEventCard(item, isCompleted, completionTime)); }); container.appendChild(dayGroup); } }
         
-        // ALTERADO: A função que gera o botão do clima foi renomeada e seu conteúdo atualizado.
         function createEventCard(item, isCompleted, completionTime) {
             const card = document.createElement('div');
             const { icon, typeClass } = getEventIconAndClass(item);
@@ -345,13 +343,11 @@
         function generateMapLink(item) { if (!item.location) return ''; const query = encodeURIComponent(`${item.location}, ${item.city}, ${item.country}`); return `<a href="https://maps.google.com/maps?q=${query}" target="_blank" class="action-btn"><i class="fa-solid fa-map-location-dot"></i> Ver no Mapa</a>`; }
         function generateCalendarLink(item) { const startDate = parseBrazilianDate(item.date, item.time); if (!startDate || isNaN(startDate.getTime())) return ''; let travelTimeMinutes = 60; if (item.travel_time && item.travel_time !== 'N/A') { const travelTimeParts = item.travel_time.match(/(\d+)h(\d+)m/); if (travelTimeParts && travelTimeParts.length === 3) { travelTimeMinutes = parseInt(travelTimeParts[1]) * 60 + parseInt(travelTimeParts[2]); } } const endDate = new Date(startDate.getTime() + travelTimeMinutes * 60000); if (isNaN(endDate.getTime())) return ''; const formatTime = (date) => date.toISOString().replace(/-|:|\.\d+/g, ''); const startDateStr = formatTime(startDate); const endDateStr = formatTime(endDate); const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(item.activity || '')}&dates=${startDateStr}/${endDateStr}&location=${encodeURIComponent((item.location || '') + ', ' + (item.city || ''))}&details=${encodeURIComponent('Observações: ' + (item.notes || 'Nenhuma'))}`; return `<a href="${url}" target="_blank" class="action-btn"><i class="fa-solid fa-calendar-plus"></i> Add ao Calendário</a>`; }
 
-        // ALTERADO: A função que gera o botão foi renomeada para 'generatePanelButton'.
-        // O ícone e o texto foram atualizados. A classe CSS agora é 'panel-btn'.
         function generatePanelButton(id) {
             return `<button class="action-btn panel-btn" data-id="${id}"><i class="fa-solid fa-display"></i> Status Local</button>`;
         }
         
-        // NOVO: Esta é a função que busca todos os dados para o painel de uma vez.
+        // CORRIGIDO: Função de busca de dados do painel, agora com lógica de data.
         async function fetchPanelData(event) {
             if (!event || !event.city) return null;
 
@@ -360,19 +356,49 @@
                 const geoResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(event.city)}&count=1&language=pt&format=json`);
                 const geoData = await geoResponse.json();
                 if (!geoData.results || geoData.results.length === 0) throw new Error('Cidade não encontrada.');
-                const { latitude, longitude } = geoData.results[0];
+                const { latitude, longitude, country } = geoData.results[0];
 
-                // 2. Chamada única e poderosa para a Open-Meteo para obter múltiplos dados.
-                const eventDateFormatted = parseBrazilianDate(event.date, "00:00").toISOString().split('T')[0];
-                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,sunrise,sunset&current=weather_code,temperature_2m,apparent_temperature,wind_speed_10m&wind_speed_unit=kmh&timezone=auto&start_date=${eventDateFormatted}&end_date=${eventDateFormatted}`;
+                // 2. Determinar a data para a consulta de clima.
+                const eventDate = parseBrazilianDate(event.date, "00:00");
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // Normaliza para o início do dia
+
+                const diffTime = eventDate.getTime() - today.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                let queryDate = new Date(); // Por padrão, usa a data de hoje
+                let isFutureNotice = false;
+
+                if (diffDays >= 0 && diffDays <= 16) {
+                    // Se o evento está no futuro próximo (até 16 dias), usa a data do evento.
+                    queryDate = eventDate;
+                } else if (diffDays > 16) {
+                    // Se o evento está muito no futuro, usa a data de hoje e marca para avisar o usuário.
+                    isFutureNotice = true;
+                } else {
+                    // Se o evento está no passado, usa a data do evento para dados históricos.
+                    queryDate = eventDate;
+                }
+                const queryDateFormatted = queryDate.toISOString().split('T')[0];
+
+                // 3. Chamada única para a Open-Meteo para obter múltiplos dados.
+                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,sunrise,sunset&current=weather_code,temperature_2m,apparent_temperature,wind_speed_10m&wind_speed_unit=kmh&timezone=auto&start_date=${queryDateFormatted}&end_date=${queryDateFormatted}`;
                 
                 const weatherResponse = await fetch(weatherUrl);
+                if (!weatherResponse.ok) {
+                    const errorBody = await weatherResponse.json();
+                    console.error("Erro da API Open-Meteo:", errorBody);
+                    throw new Error(`A API de clima retornou um erro.`);
+                }
                 const weatherData = await weatherResponse.json();
 
-                // 3. Chamada para a API de Webcams do Windy.
-                // Note que a chave de API é enviada no header, como é a prática recomendada.
+                if (!weatherData || !weatherData.current || !weatherData.daily) {
+                    throw new Error('A resposta da API de clima está incompleta.');
+                }
+
+                // 4. Chamada para a API de Webcams do Windy.
                 let webcamImageUrl = null;
-                if (WINDY_API_KEY && WINDY_API_KEY !== '8blZNjPPwC439kOhN7jphWQURSzBCZUN') {
+                if (WINDY_API_KEY) { // Apenas checa se a chave existe
                     const webcamResponse = await fetch(`https://api.windy.com/api/webcams/v2/list/nearby=${latitude},${longitude},50?show=webcams:image,location`, {
                         headers: { 'x-windy-key': WINDY_API_KEY }
                     });
@@ -386,19 +412,21 @@
                     }
                 }
                 
-                // 4. Monta um objeto com todos os dados organizados para facilitar o uso.
+                // 5. Monta um objeto com todos os dados organizados.
                 return {
                     city: event.city,
-                    country: geoData.results[0].country,
+                    country: country,
                     weather: getWeatherIconAndDescription(weatherData.current.weather_code),
                     tempAtual: weatherData.current.temperature_2m,
                     sensacaoAtual: weatherData.current.apparent_temperature,
                     vento: weatherData.current.wind_speed_10m,
                     horaLocal: new Date().toLocaleTimeString("pt-BR", { timeZone: weatherData.timezone, hour: '2-digit', minute: '2-digit' }),
-                    fusoDiferenca: (weatherData.utc_offset_seconds / 3600) - (-3), // Diferença para o fuso de Brasília (-3)
+                    fusoDiferenca: (weatherData.utc_offset_seconds / 3600) - (-3),
                     nascerDoSol: new Date(weatherData.daily.sunrise[0]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                     porDoSol: new Date(weatherData.daily.sunset[0]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    webcamUrl: webcamImageUrl
+                    webcamUrl: webcamImageUrl,
+                    isFutureNotice: isFutureNotice, // Passa a informação para a UI
+                    eventDate: event.date
                 };
 
             } catch (error) {
@@ -407,7 +435,7 @@
             }
         }
 
-        // ALTERADO: A antiga 'checkWeather' foi totalmente substituída por esta nova função, que controla o modal.
+        // CORRIGIDO: Função que controla o modal, agora exibindo o aviso de data futura.
         async function showStatusPanel(event) {
             if(!event) return;
             
@@ -416,10 +444,9 @@
             const locationTitle = document.getElementById('panel-location-title');
 
             locationTitle.textContent = `Status Local: ${event.city}`;
-            infoDiv.innerHTML = '<i class="fas fa-spinner fa-spin fa-2x"></i>'; // Mostra um ícone de carregamento
+            infoDiv.innerHTML = '<div style="display:flex; flex-direction:column; align-items:center; gap:10px;"><i class="fas fa-spinner fa-spin fa-2x"></i><p>Buscando dados...</p></div>';
             modal.classList.add('visible');
 
-            // Chama a função que busca todos os dados
             const data = await fetchPanelData(event);
 
             if (!data || data.error) {
@@ -427,27 +454,32 @@
                 return;
             }
 
-            // Prepara as informações para exibição
             const fusoTexto = data.fusoDiferenca === 0 ? 'mesmo fuso' : (data.fusoDiferenca > 0 ? `${data.fusoDiferenca}h à frente` : `${Math.abs(data.fusoDiferenca)}h atrás`);
             const webcamHTML = data.webcamUrl ? `<a href="${data.webcamUrl.replace('-preview.jpg', '.jpg')}" target="_blank"><img src="${data.webcamUrl}" style="width:100%; border-radius: 8px; margin-top: 10px; cursor:pointer;" alt="Webcam de ${data.city}"></a>` : '<p style="font-size:0.8em; opacity:0.7;">Nenhuma webcam encontrada nas proximidades.</p>';
+            
+            const dateNotice = data.isFutureNotice
+                ? `<p style="background-color: #fffbe6; border: 1px solid #ffe58f; padding: 8px; border-radius: 5px; font-size: 0.85em; text-align: center;">
+                     ℹ️ A previsão do tempo é para <strong>hoje</strong>. A previsão para ${data.eventDate} ainda não está disponível.
+                   </p>`
+                : '';
+
             const resumoInteligente = `Dia com ${data.weather.description.toLowerCase()} em ${data.city}. Perfeito para fotos ao entardecer às ${data.porDoSol}!`;
             
-            // Monta o HTML final para o painel
             infoDiv.innerHTML = `
-                <div style="text-align: left; font-size: 0.95em; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <p><i class="fa-solid ${data.weather.icon}" style="margin-right: 8px;"></i>${data.weather.description}</p>
-                    <p><i class="fa-solid fa-temperature-half" style="margin-right: 8px;"></i>${data.tempAtual}°C (sens. ${data.sensacaoAtual}°C)</p>
-                    <p><i class="fa-solid fa-clock" style="margin-right: 8px;"></i>${data.horaLocal} (${fusoTexto})</p>
-                    <p><i class="fa-solid fa-wind" style="margin-right: 8px;"></i>Vento a ${data.vento.toFixed(1)} km/h</p>
-                    <p><i class="fa-solid fa-sunrise" style="margin-right: 8px;"></i>Nascer do Sol: ${data.nascerDoSol}</p>
-                    <p><i class="fa-solid fa-sunset" style="margin-right: 8px;"></i>Pôr do Sol: ${data.porDoSol}</p>
+                ${dateNotice}
+                <div style="text-align: left; font-size: 0.95em; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 15px; margin-top: ${data.isFutureNotice ? '10px' : '0'};">
+                    <p><i class="fa-solid ${data.weather.icon}" style="margin-right: 8px; color: var(--primary-color);"></i>${data.weather.description}</p>
+                    <p><i class="fa-solid fa-temperature-half" style="margin-right: 8px; color: var(--primary-color);"></i>${data.tempAtual.toFixed(0)}°C (sens. ${data.sensacaoAtual.toFixed(0)}°C)</p>
+                    <p><i class="fa-solid fa-clock" style="margin-right: 8px; color: var(--primary-color);"></i>${data.horaLocal} (${fusoTexto})</p>
+                    <p><i class="fa-solid fa-wind" style="margin-right: 8px; color: var(--primary-color);"></i>Vento a ${data.vento.toFixed(1)} km/h</p>
+                    <p><i class="fa-solid fa-sunrise" style="margin-right: 8px; color: var(--primary-color);"></i>Nascer do Sol: ${data.nascerDoSol}</p>
+                    <p><i class="fa-solid fa-sunset" style="margin-right: 8px; color: var(--primary-color);"></i>Pôr do Sol: ${data.porDoSol}</p>
                 </div>
                 ${webcamHTML}
                 <p style="font-style: italic; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">${resumoInteligente}</p>
             `;
         }
 
-        // Esta função permanece, pois é usada pela lógica do painel
         function getWeatherIconAndDescription(code) {
             const codes = {
                 0: { icon: 'fa-sun', description: 'Céu limpo' }, 1: { icon: 'fa-cloud-sun', description: 'Principalmente limpo' },
