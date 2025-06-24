@@ -170,8 +170,6 @@
     
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script>
-        const WINDY_API_KEY = '8blZNjPPwC439kOhN7jphWQURSzBCZUN'; // Substitua pela sua chave da API Windy se tiver uma.
-
         const itineraryData = [
             { id: 1, date: '25/07/2025', time: '05:30', type: 'Saída', location: 'Hotel Pullman Guarulhos Aeroporto', city: 'Guarulhos', country: 'Brasil', activity: 'Saída hotel', transport: 'Transfer', distance_km: 5.4, travel_time: '0h10m', notes: null, link: null, fileLink: null },
             { id: 2, date: '25/07/2025', time: '05:40', type: 'Chegada', location: 'Aeroporto GRU', city: 'Guarulhos', country: 'Brasil', activity: 'Chegada aeroporto', transport: 'N/A', distance_km: null, travel_time: null, notes: 'Terminal 3', link: null, fileLink: null },
@@ -347,7 +345,7 @@
             return `<button class="action-btn panel-btn" data-id="${id}"><i class="fa-solid fa-display"></i> Status Local</button>`;
         }
         
-        // CORRIGIDO: Função de busca de dados do painel, agora com lógica de data.
+        // ATUALIZADO: Lógica de busca de dados do painel com melhor tratamento de erros.
         async function fetchPanelData(event) {
             if (!event || !event.city) return null;
 
@@ -366,53 +364,37 @@
                 const diffTime = eventDate.getTime() - today.getTime();
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-                let queryDate = new Date(); // Por padrão, usa a data de hoje
-                let isFutureNotice = false;
+                let dateForQueryStr;
+                let notice = null;
 
                 if (diffDays >= 0 && diffDays <= 16) {
-                    // Se o evento está no futuro próximo (até 16 dias), usa a data do evento.
-                    queryDate = eventDate;
-                } else if (diffDays > 16) {
-                    // Se o evento está muito no futuro, usa a data de hoje e marca para avisar o usuário.
-                    isFutureNotice = true;
+                    // Data válida para previsão (futuro próximo)
+                    dateForQueryStr = eventDate.toISOString().split('T')[0];
                 } else {
-                    // Se o evento está no passado, usa a data do evento para dados históricos.
-                    queryDate = eventDate;
-                }
-                const queryDateFormatted = queryDate.toISOString().split('T')[0];
-
-                // 3. Chamada única para a Open-Meteo para obter múltiplos dados.
-                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,sunrise,sunset&current=weather_code,temperature_2m,apparent_temperature,wind_speed_10m&wind_speed_unit=kmh&timezone=auto&start_date=${queryDateFormatted}&end_date=${queryDateFormatted}`;
-                
-                const weatherResponse = await fetch(weatherUrl);
-                if (!weatherResponse.ok) {
-                    const errorBody = await weatherResponse.json();
-                    console.error("Erro da API Open-Meteo:", errorBody);
-                    throw new Error(`A API de clima retornou um erro.`);
-                }
-                const weatherData = await weatherResponse.json();
-
-                if (!weatherData || !weatherData.current || !weatherData.daily) {
-                    throw new Error('A resposta da API de clima está incompleta.');
-                }
-
-                // 4. Chamada para a API de Webcams do Windy.
-                let webcamImageUrl = null;
-                if (WINDY_API_KEY) { // Apenas checa se a chave existe
-                    const webcamResponse = await fetch(`https://api.windy.com/api/webcams/v2/list/nearby=${latitude},${longitude},50?show=webcams:image,location`, {
-                        headers: { 'x-windy-key': WINDY_API_KEY }
-                    });
-                    if(webcamResponse.ok) {
-                        const webcamData = await webcamResponse.json();
-                        if (webcamData.result.webcams.length > 0) {
-                           webcamImageUrl = webcamData.result.webcams[0].image.current.preview;
-                        }
-                    } else {
-                        console.warn("Não foi possível buscar webcam. Verifique sua chave da API Windy.");
+                    // Data no passado ou futuro distante. Busca previsão de hoje e cria um aviso.
+                    dateForQueryStr = today.toISOString().split('T')[0];
+                    if (diffDays > 16) {
+                        notice = `ℹ️ A previsão do tempo é para <strong>hoje</strong>. A previsão para ${event.date} ainda não está disponível.`;
+                    } else { // diffDays < 0
+                        notice = `ℹ️ A data do evento já passou. A previsão do tempo exibida é para <strong>hoje</strong>.`;
                     }
                 }
                 
-                // 5. Monta um objeto com todos os dados organizados.
+                // 3. Chamada para a API de clima (sempre com uma data válida)
+                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,sunrise,sunset&current=weather_code,temperature_2m,apparent_temperature,wind_speed_10m&wind_speed_unit=kmh&timezone=auto&start_date=${dateForQueryStr}&end_date=${dateForQueryStr}`;
+                
+                const weatherResponse = await fetch(weatherUrl);
+                if (!weatherResponse.ok) {
+                    throw new Error(`A API de clima retornou um erro (${weatherResponse.status}).`);
+                }
+                const weatherData = await weatherResponse.json();
+                if (!weatherData.current || !weatherData.daily) {
+                    throw new Error('A resposta da API de clima está incompleta.');
+                }
+                
+                // REMOVIDO: A busca por foto/webcam foi removida.
+
+                // 5. Monta o objeto final com todos os dados.
                 return {
                     city: event.city,
                     country: country,
@@ -424,18 +406,17 @@
                     fusoDiferenca: (weatherData.utc_offset_seconds / 3600) - (-3),
                     nascerDoSol: new Date(weatherData.daily.sunrise[0]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                     porDoSol: new Date(weatherData.daily.sunset[0]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    webcamUrl: webcamImageUrl,
-                    isFutureNotice: isFutureNotice, // Passa a informação para a UI
+                    notice: notice,
                     eventDate: event.date
                 };
 
             } catch (error) {
                 console.error("Erro ao buscar dados do painel:", error);
-                return { error: 'Não foi possível obter os dados do painel.' };
+                return { error: `Não foi possível obter os dados do painel: ${error.message}` };
             }
         }
 
-        // CORRIGIDO: Função que controla o modal, agora exibindo o aviso de data futura.
+        // ATUALIZADO: Função que controla o modal, agora sem o elemento visual.
         async function showStatusPanel(event) {
             if(!event) return;
             
@@ -455,19 +436,16 @@
             }
 
             const fusoTexto = data.fusoDiferenca === 0 ? 'mesmo fuso' : (data.fusoDiferenca > 0 ? `${data.fusoDiferenca}h à frente` : `${Math.abs(data.fusoDiferenca)}h atrás`);
-            const webcamHTML = data.webcamUrl ? `<a href="${data.webcamUrl.replace('-preview.jpg', '.jpg')}" target="_blank"><img src="${data.webcamUrl}" style="width:100%; border-radius: 8px; margin-top: 10px; cursor:pointer;" alt="Webcam de ${data.city}"></a>` : '<p style="font-size:0.8em; opacity:0.7;">Nenhuma webcam encontrada nas proximidades.</p>';
             
-            const dateNotice = data.isFutureNotice
-                ? `<p style="background-color: #fffbe6; border: 1px solid #ffe58f; padding: 8px; border-radius: 5px; font-size: 0.85em; text-align: center;">
-                     ℹ️ A previsão do tempo é para <strong>hoje</strong>. A previsão para ${data.eventDate} ainda não está disponível.
-                   </p>`
+            const dateNotice = data.notice
+                ? `<p style="background-color: #fffbe6; border: 1px solid #ffe58f; padding: 8px; border-radius: 5px; font-size: 0.85em; text-align: center;">${data.notice}</p>`
                 : '';
-
+            
             const resumoInteligente = `Dia com ${data.weather.description.toLowerCase()} em ${data.city}. Perfeito para fotos ao entardecer às ${data.porDoSol}!`;
             
             infoDiv.innerHTML = `
                 ${dateNotice}
-                <div style="text-align: left; font-size: 0.95em; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 15px; margin-top: ${data.isFutureNotice ? '10px' : '0'};">
+                <div style="text-align: left; font-size: 0.95em; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 15px; margin-top: ${dateNotice ? '10px' : '0'};">
                     <p><i class="fa-solid ${data.weather.icon}" style="margin-right: 8px; color: var(--primary-color);"></i>${data.weather.description}</p>
                     <p><i class="fa-solid fa-temperature-half" style="margin-right: 8px; color: var(--primary-color);"></i>${data.tempAtual.toFixed(0)}°C (sens. ${data.sensacaoAtual.toFixed(0)}°C)</p>
                     <p><i class="fa-solid fa-clock" style="margin-right: 8px; color: var(--primary-color);"></i>${data.horaLocal} (${fusoTexto})</p>
@@ -475,7 +453,6 @@
                     <p><i class="fa-solid fa-sunrise" style="margin-right: 8px; color: var(--primary-color);"></i>Nascer do Sol: ${data.nascerDoSol}</p>
                     <p><i class="fa-solid fa-sunset" style="margin-right: 8px; color: var(--primary-color);"></i>Pôr do Sol: ${data.porDoSol}</p>
                 </div>
-                ${webcamHTML}
                 <p style="font-style: italic; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">${resumoInteligente}</p>
             `;
         }
@@ -511,4 +488,4 @@
     </script>
 
 </body>
-</html>
+</ht
