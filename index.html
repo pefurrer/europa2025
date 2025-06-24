@@ -170,10 +170,11 @@
     
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script>
-        // NOVO E IMPORTANTE: Cole sua chave da API do Windy aqui.
+        // Lembre-se de colocar sua chave real aqui!
         const WINDY_API_KEY = '8blZNjPPwC439kOhN7jphWQURSzBCZUN';
 
         const itineraryData = [
+            // SEUS DADOS DO ROTEIRO CONTINUAM AQUI, SEM ALTERAÇÃO...
             { id: 1, date: '25/07/2025', time: '05:30', type: 'Saída', location: 'Hotel Pullman Guarulhos Aeroporto', city: 'Guarulhos', country: 'Brasil', activity: 'Saída hotel', transport: 'Transfer', distance_km: 5.4, travel_time: '0h10m', notes: null, link: null, fileLink: null },
             { id: 2, date: '25/07/2025', time: '05:40', type: 'Chegada', location: 'Aeroporto GRU', city: 'Guarulhos', country: 'Brasil', activity: 'Chegada aeroporto', transport: 'N/A', distance_km: null, travel_time: null, notes: 'Terminal 3', link: null, fileLink: null },
             { id: 3, date: '25/07/2025', time: '09:25', type: 'Saída', location: 'Aeroporto GRU', city: 'Guarulhos', country: 'Brasil', activity: 'Voo GRU/MAD', transport: 'Avião', distance_km: 8420, travel_time: '9h30m', notes: 'Air China', link: null, fileLink: null },
@@ -284,7 +285,6 @@
         function switchActiveFilter(newFilter) { document.querySelector('.filter-btn.active')?.classList.remove('active'); const newActiveButton = document.querySelector(`.filter-btn[data-filter="${newFilter}"]`); if(newActiveButton) { newActiveButton.classList.add('active'); newActiveButton.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }); } }
         function toggleEventCompletion(eventId) { const completedEvents = JSON.parse(localStorage.getItem('completedEvents')) || {}; const eventDetails = itineraryData.find(e => e.id == eventId); if (!eventDetails) return; const dayOfEvent = eventDetails.date; if (completedEvents[eventId]) { delete completedEvents[eventId]; } else { const now = new Date(); const completionTimestamp = now.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' às ' + now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); completedEvents[eventId] = completionTimestamp; } localStorage.setItem('completedEvents', JSON.stringify(completedEvents)); const currentFilter = document.querySelector('.filter-btn.active').dataset.filter; if (isDayCompleted(dayOfEvent) && currentFilter === dayOfEvent) { const nextDay = findNextIncompleteDay(dayOfEvent); switchActiveFilter(nextDay); } setupFilters(); renderItinerary(document.querySelector('.filter-btn.active').dataset.filter); updateTripProgress(); updateVisitedMarkers(); }
         
-        // ALTERADO: O event listener agora procura pelo '.panel-btn' e chama a nova função 'showStatusPanel'.
         function setupRoteiroEventListeners() {
             document.getElementById('itinerary-container').addEventListener('click', (e) => {
                 const panelBtn = e.target.closest('.panel-btn');
@@ -312,7 +312,6 @@
         function setupFilters() { const filtersContainer = document.getElementById('day-filters'); const currentActiveFilter = document.querySelector('.filter-btn.active')?.dataset.filter; orderedDays = [...new Set(itineraryData.map(item => item.date).filter(Boolean))]; const allDaysForFilters = ['all', ...orderedDays]; filtersContainer.innerHTML = allDaysForFilters.map((day, index) => { const isCompleted = day !== 'all' && isDayCompleted(day); const label = day === 'all' ? 'Todos' : `Dia ${index + 1} (${day.substring(0, 5)})`; return `<button class="filter-btn ${isCompleted ? 'completed' : ''}" data-filter="${day}">${label}</button>` }).join(''); const activeFilterToSet = currentActiveFilter || orderedDays.find(day => !isDayCompleted(day)) || 'all'; switchActiveFilter(activeFilterToSet); }
         function renderItinerary(filter = 'all') { const container = document.getElementById('itinerary-container'); container.innerHTML = ''; const completedEvents = JSON.parse(localStorage.getItem('completedEvents')) || {}; const filteredData = filter === 'all' ? itineraryData : itineraryData.filter(item => item.date === filter); const groupedByDate = filteredData.reduce((acc, item) => { if (!item.date) return acc; const eventDate = parseBrazilianDate(item.date, '00:00'); if (!eventDate) return acc; const dateKey = eventDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }); if (!acc[dateKey]) { acc[dateKey] = []; } acc[dateKey].push(item); return acc; }, {}); for (const date in groupedByDate) { const dayGroup = document.createElement('div'); dayGroup.className = 'day-group'; const dayHeader = document.createElement('h2'); dayHeader.className = 'day-header'; dayHeader.textContent = date; dayGroup.appendChild(dayHeader); groupedByDate[date].sort((a,b) => (a.time || "00:00").localeCompare(b.time || "00:00")); groupedByDate[date].forEach(item => { const isCompleted = !!completedEvents[item.id]; const completionTime = completedEvents[item.id]; dayGroup.appendChild(createEventCard(item, isCompleted, completionTime)); }); container.appendChild(dayGroup); } }
         
-        // ALTERADO: A função que gera o botão do clima foi renomeada e seu conteúdo atualizado.
         function createEventCard(item, isCompleted, completionTime) {
             const card = document.createElement('div');
             const { icon, typeClass } = getEventIconAndClass(item);
@@ -343,80 +342,76 @@
         function generateFileLink(fileLink) { if (!fileLink || fileLink === "N/A") return ''; return `<a href="${fileLink}" target="_blank" class="action-btn"><i class="fa-solid fa-file-arrow-down"></i> Abrir Arquivo</a>`; }
         function setupCountdown() { if (itineraryData.length === 0) return; const countdownElement = document.getElementById('countdown'); const tripStartDate = parseBrazilianDate(itineraryData[0].date, itineraryData[0].time); if (!tripStartDate || isNaN(tripStartDate.getTime())) { countdownElement.innerHTML = "Data de início da viagem inválida."; return; } const interval = setInterval(() => { const distance = tripStartDate.getTime() - new Date().getTime(); if (distance < 0) { clearInterval(interval); countdownElement.innerHTML = "Boa viagem!"; return; } const days = Math.floor(distance / (1000 * 60 * 60 * 24)); const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)); const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)); const seconds = Math.floor((distance % (1000 * 60)) / 1000); countdownElement.innerHTML = `Faltam: ${days}d ${hours}h ${minutes}m ${seconds}s`; }, 1000); }
         function getEventIconAndClass(item) { const activity = (item.activity || '').toLowerCase(); const transport = (item.transport || '').toLowerCase(); if (activity.includes('voo')) return { icon: '<i class="fa-solid fa-plane-departure"></i>', typeClass: 'voo' }; if (activity.includes('hotel')) return { icon: '<i class="fa-solid fa-bed"></i>', typeClass: 'hotel' }; if (transport.includes('trem') || transport.includes('metrô')) return { icon: '<i class="fa-solid fa-train-subway"></i>', typeClass: 'trem' }; if (transport.includes('taxi') || transport.includes('uber') || transport.includes('carro') || transport.includes('transfer') || transport.includes('carona')) return { icon: '<i class="fa-solid fa-car"></i>', typeClass: 'deslocamento' }; if (item.type === 'Chegada') return { icon: '<i class="fa-solid fa-flag-checkered"></i>', typeClass: 'deslocamento' }; return { icon: '<i class="fa-solid fa-arrow-right-to-bracket"></i>', typeClass: 'deslocamento' }; }
-        function generateMapLink(item) { if (!item.location) return ''; const query = encodeURIComponent(`${item.location}, ${item.city}, ${item.country}`); return `<a href="https://maps.google.com/maps?q=${query}" target="_blank" class="action-btn"><i class="fa-solid fa-map-location-dot"></i> Ver no Mapa</a>`; }
+        function generateMapLink(item) { if (!item.location) return ''; const query = encodeURIComponent(`${item.location}, ${item.city}, ${item.country}`); return `<a href="https://www.google.com/maps/search/?api=1&query=${query}" target="_blank" class="action-btn"><i class="fa-solid fa-map-location-dot"></i> Ver no Mapa</a>`; }
         function generateCalendarLink(item) { const startDate = parseBrazilianDate(item.date, item.time); if (!startDate || isNaN(startDate.getTime())) return ''; let travelTimeMinutes = 60; if (item.travel_time && item.travel_time !== 'N/A') { const travelTimeParts = item.travel_time.match(/(\d+)h(\d+)m/); if (travelTimeParts && travelTimeParts.length === 3) { travelTimeMinutes = parseInt(travelTimeParts[1]) * 60 + parseInt(travelTimeParts[2]); } } const endDate = new Date(startDate.getTime() + travelTimeMinutes * 60000); if (isNaN(endDate.getTime())) return ''; const formatTime = (date) => date.toISOString().replace(/-|:|\.\d+/g, ''); const startDateStr = formatTime(startDate); const endDateStr = formatTime(endDate); const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(item.activity || '')}&dates=${startDateStr}/${endDateStr}&location=${encodeURIComponent((item.location || '') + ', ' + (item.city || ''))}&details=${encodeURIComponent('Observações: ' + (item.notes || 'Nenhuma'))}`; return `<a href="${url}" target="_blank" class="action-btn"><i class="fa-solid fa-calendar-plus"></i> Add ao Calendário</a>`; }
 
-        // ALTERADO: A função que gera o botão foi renomeada para 'generatePanelButton'.
-        // O ícone e o texto foram atualizados. A classe CSS agora é 'panel-btn'.
         function generatePanelButton(id) {
             return `<button class="action-btn panel-btn" data-id="${id}"><i class="fa-solid fa-display"></i> Status Local</button>`;
         }
         
-        // NOVO: Esta é a função que busca todos os dados para o painel de uma vez.
-        // NOVO: Versão corrigida da função fetchPanelData
-async function fetchPanelData(event) {
-    if (!event || !event.city) return null;
+        // Versão corrigida da função fetchPanelData
+        async function fetchPanelData(event) {
+            if (!event || !event.city) return null;
 
-    try {
-        // 1. Geocodificação (continua igual)
-        const geoResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(event.city)}&count=1&language=pt&format=json`);
-        const geoData = await geoResponse.json();
-        if (!geoData.results || geoData.results.length === 0) throw new Error('Cidade não encontrada.');
-        const { latitude, longitude } = geoData.results[0];
+            try {
+                // 1. Geocodificação
+                const geoResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(event.city)}&count=1&language=pt&format=json`);
+                const geoData = await geoResponse.json();
+                if (!geoData.results || geoData.results.length === 0) throw new Error('Cidade não encontrada.');
+                const { latitude, longitude } = geoData.results[0];
 
-        // 2. Chamada para a Open-Meteo com a URL CORRIGIDA
-        const eventDateFormatted = parseBrazilianDate(event.date, "00:00").toISOString().split('T')[0];
-        
-        // CORREÇÃO: O parâmetro 'european_aqi' foi movido para a lista 'current' e o parâmetro inválido 'air_quality_variables' foi removido.
-        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,sunrise,sunset&current=weather_code,temperature_2m,apparent_temperature,wind_speed_10m,european_aqi&wind_speed_unit=kmh&timezone=auto&start_date=${eventDateFormatted}&end_date=${eventDateFormatted}`;
-        
-        const weatherResponse = await fetch(weatherUrl);
-        const weatherData = await weatherResponse.json();
-
-        // Adiciona uma verificação para garantir que a resposta da API é válida
-        if (!weatherData || !weatherData.current) {
-            throw new Error('Resposta da API de clima inválida.');
-        }
-
-        // 3. Chamada para a API de Webcams do Windy (continua igual)
-        let webcamImageUrl = null;
-        if (WINDY_API_KEY && WINDY_API_KEY !== '8blZNjPPwC439kOhN7jphWQURSzBCZUN') {
-            const webcamResponse = await fetch(`https://api.windy.com/api/webcams/v2/list/nearby=${latitude},${longitude},50?show=webcams:image,location`, {
-                headers: { 'x-windy-key': WINDY_API_KEY }
-            });
-            if(webcamResponse.ok) {
-                const webcamData = await webcamResponse.json();
-                if (webcamData.result.webcams.length > 0) {
-                   webcamImageUrl = webcamData.result.webcams[0].image.current.preview;
+                // 2. Chamada para a Open-Meteo com a URL CORRIGIDA
+                const eventDateFormatted = parseBrazilianDate(event.date, "00:00").toISOString().split('T')[0];
+                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,sunrise,sunset&current=weather_code,temperature_2m,apparent_temperature,wind_speed_10m,european_aqi&wind_speed_unit=kmh&timezone=auto&start_date=${eventDateFormatted}&end_date=${eventDateFormatted}`;
+                
+                const weatherResponse = await fetch(weatherUrl);
+                if (!weatherResponse.ok) { // Verifica se a resposta da rede foi bem sucedida
+                    throw new Error(`API de clima falhou com status: ${weatherResponse.status}`);
                 }
-            } else {
-                console.warn("Não foi possível buscar webcam. Verifique sua chave da API Windy.");
+                const weatherData = await weatherResponse.json();
+
+                if (!weatherData || !weatherData.current) {
+                    throw new Error('Resposta da API de clima inválida.');
+                }
+
+                // 3. Chamada para a API de Webcams do Windy
+                let webcamImageUrl = null;
+                if (WINDY_API_KEY && WINDY_API_KEY !== '8blZNjPPwC439kOhN7jphWQURSzBCZUN') {
+                    const webcamResponse = await fetch(`https://api.windy.com/api/webcams/v2/list/nearby=${latitude},${longitude},50?show=webcams:image,location`, {
+                        headers: { 'x-windy-key': WINDY_API_KEY }
+                    });
+                    if(webcamResponse.ok) {
+                        const webcamData = await webcamResponse.json();
+                        if (webcamData.result.webcams.length > 0) {
+                           webcamImageUrl = webcamData.result.webcams[0].image.current.preview;
+                        }
+                    } else {
+                        console.warn("Não foi possível buscar webcam. Verifique sua chave da API Windy.");
+                    }
+                }
+                
+                // 4. Monta o objeto com os dados
+                return {
+                    city: event.city,
+                    country: geoData.results[0].country,
+                    weather: getWeatherIconAndDescription(weatherData.current.weather_code),
+                    tempAtual: weatherData.current.temperature_2m,
+                    sensacaoAtual: weatherData.current.apparent_temperature,
+                    vento: weatherData.current.wind_speed_10m,
+                    qualidadeAr: weatherData.current.european_aqi,
+                    horaLocal: new Date().toLocaleTimeString("pt-BR", { timeZone: weatherData.timezone, hour: '2-digit', minute: '2-digit' }),
+                    fusoDiferenca: (weatherData.utc_offset_seconds / 3600) - (-3),
+                    nascerDoSol: new Date(weatherData.daily.sunrise[0]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    porDoSol: new Date(weatherData.daily.sunset[0]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    webcamUrl: webcamImageUrl
+                };
+
+            } catch (error) {
+                console.error("Erro ao buscar dados do painel:", error);
+                return { error: 'Não foi possível obter os dados do painel.' };
             }
         }
         
-        // 4. Monta o objeto com os dados (continua igual, mas agora com qualidade do ar)
-        return {
-            city: event.city,
-            country: geoData.results[0].country,
-            weather: getWeatherIconAndDescription(weatherData.current.weather_code),
-            tempAtual: weatherData.current.temperature_2m,
-            sensacaoAtual: weatherData.current.apparent_temperature,
-            vento: weatherData.current.wind_speed_10m,
-            qualidadeAr: weatherData.current.european_aqi, // Adicionamos a qualidade do ar
-            horaLocal: new Date().toLocaleTimeString("pt-BR", { timeZone: weatherData.timezone, hour: '2-digit', minute: '2-digit' }),
-            fusoDiferenca: (weatherData.utc_offset_seconds / 3600) - (-3),
-            nascerDoSol: new Date(weatherData.daily.sunrise[0]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            porDoSol: new Date(weatherData.daily.sunset[0]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            webcamUrl: webcamImageUrl
-        };
-
-    } catch (error) {
-        console.error("Erro ao buscar dados do painel:", error);
-        return { error: 'Não foi possível obter os dados do painel.' };
-    }
-}
-
-        // ALTERADO: A antiga 'checkWeather' foi totalmente substituída por esta nova função, que controla o modal.
         async function showStatusPanel(event) {
             if(!event) return;
             
@@ -425,10 +420,9 @@ async function fetchPanelData(event) {
             const locationTitle = document.getElementById('panel-location-title');
 
             locationTitle.textContent = `Status Local: ${event.city}`;
-            infoDiv.innerHTML = '<i class="fas fa-spinner fa-spin fa-2x"></i>'; // Mostra um ícone de carregamento
+            infoDiv.innerHTML = '<i class="fas fa-spinner fa-spin fa-2x"></i>';
             modal.classList.add('visible');
 
-            // Chama a função que busca todos os dados
             const data = await fetchPanelData(event);
 
             if (!data || data.error) {
@@ -436,12 +430,17 @@ async function fetchPanelData(event) {
                 return;
             }
 
-            // Prepara as informações para exibição
             const fusoTexto = data.fusoDiferenca === 0 ? 'mesmo fuso' : (data.fusoDiferenca > 0 ? `${data.fusoDiferenca}h à frente` : `${Math.abs(data.fusoDiferenca)}h atrás`);
             const webcamHTML = data.webcamUrl ? `<a href="${data.webcamUrl.replace('-preview.jpg', '.jpg')}" target="_blank"><img src="${data.webcamUrl}" style="width:100%; border-radius: 8px; margin-top: 10px; cursor:pointer;" alt="Webcam de ${data.city}"></a>` : '<p style="font-size:0.8em; opacity:0.7;">Nenhuma webcam encontrada nas proximidades.</p>';
-            const resumoInteligente = `Dia com ${data.weather.description.toLowerCase()} em ${data.city}. Perfeito para fotos ao entardecer às ${data.porDoSol}!`;
             
-            // Monta o HTML final para o painel
+            // Lógica para obter um resumo mais inteligente
+            let resumoInteligente = `Dia com ${data.weather.description.toLowerCase()} em ${data.city}.`;
+            if (data.tempAtual > 25) resumoInteligente += " Está quente, hidrate-se!";
+            else if (data.tempAtual < 10) resumoInteligente += " Leve um casaco!";
+            else resumoInteligente += ` Perfeito para fotos ao entardecer às ${data.porDoSol}!`;
+            
+            const qualidadeArTexto = data.qualidadeAr ? `<p><i class="fa-solid fa-smog" style="margin-right: 8px;"></i>Qualidade do Ar: ${data.qualidadeAr}</p>` : '';
+
             infoDiv.innerHTML = `
                 <div style="text-align: left; font-size: 0.95em; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <p><i class="fa-solid ${data.weather.icon}" style="margin-right: 8px;"></i>${data.weather.description}</p>
@@ -450,13 +449,13 @@ async function fetchPanelData(event) {
                     <p><i class="fa-solid fa-wind" style="margin-right: 8px;"></i>Vento a ${data.vento.toFixed(1)} km/h</p>
                     <p><i class="fa-solid fa-sunrise" style="margin-right: 8px;"></i>Nascer do Sol: ${data.nascerDoSol}</p>
                     <p><i class="fa-solid fa-sunset" style="margin-right: 8px;"></i>Pôr do Sol: ${data.porDoSol}</p>
+                    ${qualidadeArTexto}
                 </div>
                 ${webcamHTML}
                 <p style="font-style: italic; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">${resumoInteligente}</p>
             `;
         }
 
-        // Esta função permanece, pois é usada pela lógica do painel
         function getWeatherIconAndDescription(code) {
             const codes = {
                 0: { icon: 'fa-sun', description: 'Céu limpo' }, 1: { icon: 'fa-cloud-sun', description: 'Principalmente limpo' },
@@ -481,11 +480,10 @@ async function fetchPanelData(event) {
         async function setupUsefulPhrases() { const statusEl = document.getElementById('phrases-status'); const listEl = document.getElementById('phrase-list'); const activateBtn = document.getElementById('activate-phrases-btn'); statusEl.textContent = 'Clique no botão para carregar as frases.'; activateBtn.onclick = async () => { activateBtn.disabled = true; statusEl.textContent = 'A detetar idioma...'; try { const position = await new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 })); const { latitude, longitude } = position.coords; const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`); const data = await response.json(); const countryCode = data.countryCode; const langMap = {'DE': 'de-DE', 'ES': 'es-ES', 'FR': 'fr-FR', 'NL': 'nl-NL', 'IT': 'it-IT', 'SE': 'sv-SE', 'CH': 'de-CH'}; let lang = langMap[countryCode]; if (countryCode === 'BR') { lang = 'en-US'; statusEl.textContent = 'Localização: Brasil. A exibir frases em Inglês (língua de viagem).'; } else if (lang) { statusEl.textContent = `Idioma local detetado: ${lang}`; } else { lang = 'en-US'; statusEl.textContent = 'Idioma não suportado. A exibir frases em Inglês (padrão).'; } const phrases = { 'de-DE': [ { pt: 'Olá', local: 'Hallo', phonetic: 'Ra-lô' }, { pt: 'Obrigado(a)', local: 'Danke', phonetic: 'Dan-que' }, { pt: 'Por favor', local: 'Bitte', phonetic: 'Bi-te' }, { pt: 'Quanto custa?', local: 'Wie viel kostet das?', phonetic: 'Vi-fil cos-tet das?' }, { pt: 'Bom dia', local: 'Guten Morgen', phonetic: 'Gu-ten Mor-guen'}, { pt: 'Adeus', local: 'Auf Wiedersehen', phonetic: 'Auf Vi-der-zeen'}, { pt: 'Sim / Não', local: 'Ja / Nein', phonetic: 'Iá / Nain'}, { pt: 'Desculpe', local: 'Entschuldigung', phonetic: 'Ent-chul-di-gung'}, { pt: 'Onde é a casa de banho?', local: 'Wo ist die Toilette?', phonetic: 'Vô ist di Toa-le-te?'}, { pt: 'A conta, por favor', local: 'Die Rechnung, bitte', phonetic: 'Di Rech-nung, bi-te'} ], 'es-ES': [ { pt: 'Olá', local: 'Hola', phonetic: 'Ô-la' }, { pt: 'Obrigado(a)', local: 'Gracias', phonetic: 'Grá-cias' }, { pt: 'Por favor', local: 'Por favor', phonetic: 'Por fa-vor' }, { pt: 'Quanto custa?', local: '¿Cuánto cuesta?', phonetic: 'Cuanto cues-ta?' }, { pt: 'Bom dia', local: 'Buenos días', phonetic: 'Buenos dias'}, { pt: 'Adeus', local: 'Adiós', phonetic: 'A-diós'}, { pt: 'Sim / Não', local: 'Sí / No', phonetic: 'Si / No'}, { pt: 'Desculpe', local: 'Perdón', phonetic: 'Per-don'}, { pt: 'Onde fica a casa de banho?', local: '¿Dónde está el baño?', phonetic: 'Donde es-tá el banho?'}, { pt: 'A conta, por favor', local: 'La cuenta, por favor', phonetic: 'La cuenta, por fa-vor'} ], 'fr-FR': [ { pt: 'Olá', local: 'Bonjour', phonetic: 'Bon-jur' }, { pt: 'Obrigado(a)', local: 'Merci', phonetic: 'Mer-cí' }, { pt: 'Por favor', local: 'S\'il vous plaît', phonetic: 'Sil vu plé' }, { pt: 'Quanto custa?', local: 'Combien ça coûte?', phonetic: 'Com-bian sa cut?' }, { pt: 'Bom dia', local: 'Bonjour', phonetic: 'Bon-jur'}, { pt: 'Adeus', local: 'Au revoir', phonetic: 'Ô re-voar'}, { pt: 'Sim / Não', local: 'Oui / Non', phonetic: 'Ui / Non'}, { pt: 'Desculpe-me', local: 'Excusez-moi', phonetic: 'Ex-cu-zê muá'}, { pt: 'Onde ficam as casas de banho?', local: 'Où sont les toilettes?', phonetic: 'U son lê toa-let?'}, { pt: 'A conta, por favor', local: 'L\'addition, s\'il vous plaît', phonetic: 'La-di-cion, sil vu plé'} ], 'it-IT': [ { pt: 'Olá', local: 'Ciao', phonetic: 'Tcháo' }, { pt: 'Obrigado(a)', local: 'Grazie', phonetic: 'Grá-tzie' }, { pt: 'Por favor', local: 'Per favore', phonetic: 'Per fa-vô-re' }, { pt: 'Quanto custa?', local: 'Quanto costa?', phonetic: 'Quanto cos-ta?' }, { pt: 'Bom dia', local: 'Buongiorno', phonetic: 'Bon-djor-no'}, { pt: 'Adeus', local: 'Arrivederci', phonetic: 'A-rri-ve-der-tchi'}, { pt: 'Sim / Não', local: 'Sì / No', phonetic: 'Si / No'}, { pt: 'Com licença', local: 'Permesso', phonetic: 'Per-mes-so'}, { pt: 'Onde é a casa de banho?', local: 'Dov\'è il bagno?', phonetic: 'Dov-é il banho?'}, { pt: 'A conta, por favor', local: 'Il conto, per favore', phonetic: 'Il con-to, per fa-vo-re'} ], 'en-US': [ { pt: 'Olá', local: 'Hello', phonetic: 'Re-lôu' }, { pt: 'Obrigado(a)', local: 'Thank you', phonetic: 'Fenk-iú' }, { pt: 'Por favor', local: 'Please', phonetic: 'Pliz' }, { pt: 'Quanto custa?', local: 'How much is it?', phonetic: 'Rau match is it?' }, { pt: 'Bom dia', local: 'Good morning', phonetic: 'Gud mor-ning'}, { pt: 'Adeus', local: 'Goodbye', phonetic: 'Gud-bái'}, { pt: 'Sim / Não', local: 'Yes / No', phonetic: 'Iés / Nôu'}, { pt: 'Desculpe-me', local: 'Excuse me', phonetic: 'Ex-kiuz mi'}, { pt: 'Onde é a casa de banho?', local: 'Where is the restroom?', phonetic: 'Uér is de rest-rum?'}, { pt: 'A conta, por favor', local: 'The check, please', phonetic: 'De tchek, pliz'} ] }; const phraseList = phrases[lang]; listEl.innerHTML = phraseList.map(p => `<div class="list-item"><span><strong>${p.local}</strong> (${p.phonetic})<br><small>${p.pt}</small></span><button class="action-btn" onclick="playPhrase('${p.local}', '${lang}')"><i class="fa-solid fa-volume-high"></i></button></div>`).join(''); activateBtn.style.display = 'none';} catch (error) { statusEl.textContent = 'Não foi possível carregar as frases. Tente novamente.'; console.error('Erro nas frases:', error); activateBtn.disabled = false; } }; }
         function playPhrase(text, lang) { if ('speechSynthesis' in window) { window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = lang; window.speechSynthesis.speak(utterance); } else { alert('Seu navegador não suporta a síntese de voz.'); } }
         function saveParkingLocation() { const infoDiv = document.getElementById('parking-info'); infoDiv.innerHTML = '<p>A guardar localização...</p>'; navigator.geolocation.getCurrentPosition(pos => { const coords = { lat: pos.coords.latitude, lon: pos.coords.longitude }; localStorage.setItem('parkedCarLocation', JSON.stringify(coords)); const fileInput = document.createElement('input'); fileInput.type = 'file'; fileInput.accept = 'image/*'; fileInput.capture = 'environment'; fileInput.onchange = (e) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onload = (readEvent) => { localStorage.setItem('parkedCarPhoto', readEvent.target.result); displayParkedCarInfo(); }; reader.readAsDataURL(file); } else { displayParkedCarInfo(); } }; fileInput.click(); }, (err) => { infoDiv.innerHTML = `<p style="color:red;">Erro ao obter localização: ${err.message}</p>`; }); }
-        function displayParkedCarInfo() { const infoDiv = document.getElementById('parking-info'); const location = JSON.parse(localStorage.getItem('parkedCarLocation')); const photo = localStorage.getItem('parkedCarPhoto'); if (!location) { infoDiv.innerHTML = '<p>Nenhuma localização de estacionamento guardada.</p>'; return; } let html = `<a href="https://maps.google.com/maps?q=${location.lat},${location.lon}" target="_blank" class="action-btn" style="background:var(--success-color); color:white;">Navegar de Volta para o Carro</a>`; html += `<button id="clear-parking" class="action-btn" style="background:#dc3545; color:white;">Limpar Localização</button>`; if (photo) { html += `<h4>Foto do Local:</h4><img id="parked-car-photo" src="${photo}" alt="Foto do estacionamento">`; } infoDiv.innerHTML = html; document.getElementById('clear-parking').addEventListener('click', () => { localStorage.removeItem('parkedCarLocation'); localStorage.removeItem('parkedCarPhoto'); displayParkedCarInfo(); }); }
+        function displayParkedCarInfo() { const infoDiv = document.getElementById('parking-info'); const location = JSON.parse(localStorage.getItem('parkedCarLocation')); const photo = localStorage.getItem('parkedCarPhoto'); if (!location) { infoDiv.innerHTML = '<p>Nenhuma localização de estacionamento guardada.</p>'; return; } let html = `<a href="https://www.google.com/maps/search/?api=1&query=${location.lat},${location.lon}" target="_blank" class="action-btn" style="background:var(--success-color); color:white;">Navegar de Volta para o Carro</a>`; html += `<button id="clear-parking" class="action-btn" style="background:#dc3545; color:white;">Limpar Localização</button>`; if (photo) { html += `<h4>Foto do Local:</h4><img id="parked-car-photo" src="${photo}" alt="Foto do estacionamento">`; } infoDiv.innerHTML = html; document.getElementById('clear-parking').addEventListener('click', () => { localStorage.removeItem('parkedCarLocation'); localStorage.removeItem('parkedCarPhoto'); displayParkedCarInfo(); }); }
         async function findPointsOfInterest() { const resultsDiv = document.getElementById('poi-results'); const findBtn = document.getElementById('find-poi-btn'); const filtersDiv = document.getElementById('poi-filters'); findBtn.disabled = true; resultsDiv.innerHTML = '<p>A obter a sua localização...</p>'; if (!navigator.geolocation) { resultsDiv.innerHTML = '<p style="color:red;">Geolocalização não é suportada pelo seu navegador.</p>'; findBtn.disabled = false; return; } navigator.geolocation.getCurrentPosition(async (position) => { const { latitude, longitude } = position.coords; resultsDiv.innerHTML = '<p>A procurar locais próximos...</p>'; const poiCategories = { Restaurantes: '[amenity=restaurant]', 'Pontos Turísticos': '[tourism=attraction]', Passeios: '[tourism=artwork],[tourism=gallery],[tourism=museum]', 'Banheiros Públicos': '[amenity=toilets]', Estacionamentos: '[amenity=parking]', 'Recarga EV': '[amenity=charging_station]' }; filtersDiv.style.display = 'flex'; filtersDiv.innerHTML = Object.keys(poiCategories).map(cat => `<button class="action-btn poi-filter-btn" data-query="${poiCategories[cat]}">${cat}</button>`).join(''); document.querySelectorAll('.poi-filter-btn').forEach(btn => { btn.addEventListener('click', async (e) => { document.querySelectorAll('.poi-filter-btn').forEach(b => b.classList.remove('active')); e.target.classList.add('active'); const queryPart = e.target.dataset.query; fetchAndDisplayPOI(latitude, longitude, queryPart); }); }); document.querySelector('.poi-filter-btn').click(); }, (error) => { resultsDiv.innerHTML = `<p style="color:red;">Não foi possível obter a sua localização. Erro: ${error.message}</p>`; }); findBtn.disabled = false; }
-        async function fetchAndDisplayPOI(lat, lon, queryPart) { const resultsDiv = document.getElementById('poi-results'); resultsDiv.innerHTML = `<p>A procurar...</p>`; const radius = 2000; const overpassQuery = `[out:json];(node${queryPart}(around:${radius},${lat},${lon});way${queryPart}(around:${radius},${lat},${lon});relation${queryPart}(around:${radius},${lat},${lon}););out center;`; try { const response = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: overpassQuery }); const data = await response.json(); if (data.elements.length === 0) { resultsDiv.innerHTML = '<p>Nenhum resultado encontrado nesta categoria.</p>'; return; } resultsDiv.innerHTML = ''; data.elements.forEach(el => { if (el.tags && el.tags.name) { const lat = el.lat || el.center.lat; const lon = el.lon || el.center.lon; const poiItem = document.createElement('div'); poiItem.className = 'list-item'; poiItem.innerHTML = `<span>${el.tags.name}</span><a href="https://maps.google.com/maps?q=${lat},${lon}" target="_blank" class="action-btn" style="font-size: 0.7em;">Ver Mapa</a>`; resultsDiv.appendChild(poiItem); } }); } catch(error) { console.error("Erro na API Overpass:", error); resultsDiv.innerHTML = '<p style="color:red;">Ocorreu um erro ao procurar locais.</p>'; } }
+        async function fetchAndDisplayPOI(lat, lon, queryPart) { const resultsDiv = document.getElementById('poi-results'); resultsDiv.innerHTML = `<p>A procurar...</p>`; const radius = 2000; const overpassQuery = `[out:json];(node${queryPart}(around:${radius},${lat},${lon});way${queryPart}(around:${radius},${lat},${lon});relation${queryPart}(around:${radius},${lat},${lon}););out center;`; try { const response = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: overpassQuery }); const data = await response.json(); if (data.elements.length === 0) { resultsDiv.innerHTML = '<p>Nenhum resultado encontrado nesta categoria.</p>'; return; } resultsDiv.innerHTML = ''; data.elements.forEach(el => { if (el.tags && el.tags.name) { const lat = el.lat || el.center.lat; const lon = el.lon || el.center.lon; const poiItem = document.createElement('div'); poiItem.className = 'list-item'; poiItem.innerHTML = `<span>${el.tags.name}</span><a href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}" target="_blank" class="action-btn" style="font-size: 0.7em;">Ver Mapa</a>`; resultsDiv.appendChild(poiItem); } }); } catch(error) { console.error("Erro na API Overpass:", error); resultsDiv.innerHTML = '<p style="color:red;">Ocorreu um erro ao procurar locais.</p>'; } }
 
     </script>
-
 </body>
 </html>
