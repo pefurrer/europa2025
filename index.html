@@ -353,60 +353,68 @@
         }
         
         // NOVO: Esta é a função que busca todos os dados para o painel de uma vez.
-        async function fetchPanelData(event) {
-            if (!event || !event.city) return null;
+        // NOVO: Versão corrigida da função fetchPanelData
+async function fetchPanelData(event) {
+    if (!event || !event.city) return null;
 
-            try {
-                // 1. Geocodificação para obter latitude e longitude.
-                const geoResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(event.city)}&count=1&language=pt&format=json`);
-                const geoData = await geoResponse.json();
-                if (!geoData.results || geoData.results.length === 0) throw new Error('Cidade não encontrada.');
-                const { latitude, longitude } = geoData.results[0];
+    try {
+        // 1. Geocodificação (continua igual)
+        const geoResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(event.city)}&count=1&language=pt&format=json`);
+        const geoData = await geoResponse.json();
+        if (!geoData.results || geoData.results.length === 0) throw new Error('Cidade não encontrada.');
+        const { latitude, longitude } = geoData.results[0];
 
-                // 2. Chamada única e poderosa para a Open-Meteo para obter múltiplos dados.
-                const eventDateFormatted = parseBrazilianDate(event.date, "00:00").toISOString().split('T')[0];
-                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,sunrise,sunset&current=weather_code,temperature_2m,apparent_temperature,wind_speed_10m&wind_speed_unit=kmh&timezone=auto&start_date=${eventDateFormatted}&end_date=${eventDateFormatted}`;
-                
-                const weatherResponse = await fetch(weatherUrl);
-                const weatherData = await weatherResponse.json();
+        // 2. Chamada para a Open-Meteo com a URL CORRIGIDA
+        const eventDateFormatted = parseBrazilianDate(event.date, "00:00").toISOString().split('T')[0];
+        
+        // CORREÇÃO: O parâmetro 'european_aqi' foi movido para a lista 'current' e o parâmetro inválido 'air_quality_variables' foi removido.
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,sunrise,sunset&current=weather_code,temperature_2m,apparent_temperature,wind_speed_10m,european_aqi&wind_speed_unit=kmh&timezone=auto&start_date=${eventDateFormatted}&end_date=${eventDateFormatted}`;
+        
+        const weatherResponse = await fetch(weatherUrl);
+        const weatherData = await weatherResponse.json();
 
-                // 3. Chamada para a API de Webcams do Windy.
-                // Note que a chave de API é enviada no header, como é a prática recomendada.
-                let webcamImageUrl = null;
-                if (WINDY_API_KEY && WINDY_API_KEY !== '8blZNjPPwC439kOhN7jphWQURSzBCZUN') {
-                    const webcamResponse = await fetch(`https://api.windy.com/api/webcams/v2/list/nearby=${latitude},${longitude},50?show=webcams:image,location`, {
-                        headers: { 'x-windy-key': WINDY_API_KEY }
-                    });
-                    if(webcamResponse.ok) {
-                        const webcamData = await webcamResponse.json();
-                        if (webcamData.result.webcams.length > 0) {
-                           webcamImageUrl = webcamData.result.webcams[0].image.current.preview;
-                        }
-                    } else {
-                        console.warn("Não foi possível buscar webcam. Verifique sua chave da API Windy.");
-                    }
+        // Adiciona uma verificação para garantir que a resposta da API é válida
+        if (!weatherData || !weatherData.current) {
+            throw new Error('Resposta da API de clima inválida.');
+        }
+
+        // 3. Chamada para a API de Webcams do Windy (continua igual)
+        let webcamImageUrl = null;
+        if (WINDY_API_KEY && WINDY_API_KEY !== '8blZNjPPwC439kOhN7jphWQURSzBCZUN') {
+            const webcamResponse = await fetch(`https://api.windy.com/api/webcams/v2/list/nearby=${latitude},${longitude},50?show=webcams:image,location`, {
+                headers: { 'x-windy-key': WINDY_API_KEY }
+            });
+            if(webcamResponse.ok) {
+                const webcamData = await webcamResponse.json();
+                if (webcamData.result.webcams.length > 0) {
+                   webcamImageUrl = webcamData.result.webcams[0].image.current.preview;
                 }
-                
-                // 4. Monta um objeto com todos os dados organizados para facilitar o uso.
-                return {
-                    city: event.city,
-                    country: geoData.results[0].country,
-                    weather: getWeatherIconAndDescription(weatherData.current.weather_code),
-                    tempAtual: weatherData.current.temperature_2m,
-                    sensacaoAtual: weatherData.current.apparent_temperature,
-                    vento: weatherData.current.wind_speed_10m,
-                    horaLocal: new Date().toLocaleTimeString("pt-BR", { timeZone: weatherData.timezone, hour: '2-digit', minute: '2-digit' }),
-                    fusoDiferenca: (weatherData.utc_offset_seconds / 3600) - (-3), // Diferença para o fuso de Brasília (-3)
-                    nascerDoSol: new Date(weatherData.daily.sunrise[0]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    porDoSol: new Date(weatherData.daily.sunset[0]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    webcamUrl: webcamImageUrl
-                };
-
-            } catch (error) {
-                console.error("Erro ao buscar dados do painel:", error);
-                return { error: 'Não foi possível obter os dados do painel.' };
+            } else {
+                console.warn("Não foi possível buscar webcam. Verifique sua chave da API Windy.");
             }
         }
+        
+        // 4. Monta o objeto com os dados (continua igual, mas agora com qualidade do ar)
+        return {
+            city: event.city,
+            country: geoData.results[0].country,
+            weather: getWeatherIconAndDescription(weatherData.current.weather_code),
+            tempAtual: weatherData.current.temperature_2m,
+            sensacaoAtual: weatherData.current.apparent_temperature,
+            vento: weatherData.current.wind_speed_10m,
+            qualidadeAr: weatherData.current.european_aqi, // Adicionamos a qualidade do ar
+            horaLocal: new Date().toLocaleTimeString("pt-BR", { timeZone: weatherData.timezone, hour: '2-digit', minute: '2-digit' }),
+            fusoDiferenca: (weatherData.utc_offset_seconds / 3600) - (-3),
+            nascerDoSol: new Date(weatherData.daily.sunrise[0]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            porDoSol: new Date(weatherData.daily.sunset[0]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            webcamUrl: webcamImageUrl
+        };
+
+    } catch (error) {
+        console.error("Erro ao buscar dados do painel:", error);
+        return { error: 'Não foi possível obter os dados do painel.' };
+    }
+}
 
         // ALTERADO: A antiga 'checkWeather' foi totalmente substituída por esta nova função, que controla o modal.
         async function showStatusPanel(event) {
